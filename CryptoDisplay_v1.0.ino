@@ -64,8 +64,8 @@ currency st_currencies[MAX_CURRENCIES];
 String arrToDisplay[MAX_CURRENCIES] = {"CryptoDisplay"};
 
 // You network info
-const char* ssid = "ReseauVico";
-const char* password = "d9rpapt3p4al";
+const char* ssid = "Network_SSID";
+const char* password = "your_pwd";
 
 // API host and port
 const char* host = "api.coinmarketcap.com";
