@@ -225,10 +225,8 @@ void loop() {
   
   else{
     Serial.println("Go to sleep, but ask time before");
-    String("").toCharArray(curMessage, BUF_SIZE);
-    if(P.displayAnimate()){
-      P.displayReset();
-    } 
+    P.displayClear();
+    P.displayReset();
     //get a random server from the pool
     WiFi.hostByName(ntpServerName, timeServerIP);
     
