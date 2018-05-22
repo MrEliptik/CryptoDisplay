@@ -7,9 +7,10 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-!! CAREFUL !! At the time of writing (22/05/18), the Arduino Board Manager has the v2.4.1 of ESP8266. This version is know to have a memory leak problem and I was struggling alot with this version ! The solution is to manually add the board with the lastest Git version. Follow the link to do it : https://github.com/esp8266/Arduino/blob/master/README.md#using-git-version
+!! CAREFUL !! At the time of writing (22/05/18), the Arduino Board Manager has the v2.4.1 of ESP8266. This version is known to have a memory leak problem and I was struggling alot with this version ! The solution is to manually add the board with the lastest Git version. Follow the link to do it : https://github.com/esp8266/Arduino/blob/master/README.md#using-git-version
 
 If the Arduino Board Manager version is > 2.4.1 or that you don't mind the memory link, follow these steps  :
+
 First thing is to add board support to your board manager. Inside the Arduino IDE, click on "Preferences". Under "Additional Boards Manager URLs, add : 
 
 ```
