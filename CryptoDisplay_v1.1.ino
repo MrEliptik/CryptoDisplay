@@ -38,6 +38,7 @@
 #define CS_PIN          D8  // or SS
 
 #define LOOPDURATION    60000
+#define CONNECT_TIMEOUT 20000
 
 #define BUF_SIZE        75
 
@@ -51,7 +52,7 @@
 #define WORKING_SECONDES_START  0
 
 #define WORKING_HOUR_STOP       23
-#define WORKING_MINUTES_STOP    30
+#define WORKING_MINUTES_STOP    00
 #define WORKING_SECONDES_STOP   0
 
 // HARDWARE SPI
@@ -152,90 +153,123 @@ void setup() {
 }
 
 void loop() {
-  // We are in the working hours  
-  if( (WORKING_HOUR_STOP >= WORKING_HOUR_START && (((hours*3600)+(minutes*60)+seconds) < ((WORKING_HOUR_STOP*3600) + (WORKING_MINUTES_STOP*60) + WORKING_SECONDES_STOP) && 
-      ((hours*3600)+(minutes*60)+seconds) > ((WORKING_HOUR_START*3600) + (WORKING_MINUTES_START*60) + WORKING_SECONDES_START)))
-      || 
-      (WORKING_HOUR_STOP < WORKING_HOUR_START && (hours <= WORKING_HOUR_STOP) && (((hours*3600)+(minutes*60)+seconds) < ((WORKING_HOUR_STOP*3600) + (WORKING_MINUTES_STOP*60) + WORKING_SECONDES_STOP) && 
-      ((hours*3600)+(minutes*60)+seconds) < ((WORKING_HOUR_START*3600) + (WORKING_MINUTES_START*60) + WORKING_SECONDES_START)))
-      || 
-      (WORKING_HOUR_STOP < WORKING_HOUR_START && (hours > WORKING_HOUR_STOP) && (((hours*3600)+(minutes*60)+seconds) > ((WORKING_HOUR_STOP*3600) + (WORKING_MINUTES_STOP*60) + WORKING_SECONDES_STOP) && 
-      ((hours*3600)+(minutes*60)+seconds) > ((WORKING_HOUR_START*3600) + (WORKING_MINUTES_START*60) + WORKING_SECONDES_START)))
-  ){
-    // Every LOOPDURATION seconds
-    currentMillis = millis();
-    if(currentMillis - previousMillis >= LOOPDURATION) {
-      previousMillis = currentMillis;    
+
+  if(WiFi.status() == WL_CONNECTED)
+  {     
+    // We are in the working hours  
+    if( (WORKING_HOUR_STOP >= WORKING_HOUR_START && (((hours*3600)+(minutes*60)+seconds) < ((WORKING_HOUR_STOP*3600) + (WORKING_MINUTES_STOP*60) + WORKING_SECONDES_STOP) && 
+        ((hours*3600)+(minutes*60)+seconds) > ((WORKING_HOUR_START*3600) + (WORKING_MINUTES_START*60) + WORKING_SECONDES_START)))
+        || 
+        (WORKING_HOUR_STOP < WORKING_HOUR_START && (hours <= WORKING_HOUR_STOP) && (((hours*3600)+(minutes*60)+seconds) < ((WORKING_HOUR_STOP*3600) + (WORKING_MINUTES_STOP*60) + WORKING_SECONDES_STOP) && 
+        ((hours*3600)+(minutes*60)+seconds) < ((WORKING_HOUR_START*3600) + (WORKING_MINUTES_START*60) + WORKING_SECONDES_START)))
+        || 
+        (WORKING_HOUR_STOP < WORKING_HOUR_START && (hours > WORKING_HOUR_STOP) && (((hours*3600)+(minutes*60)+seconds) > ((WORKING_HOUR_STOP*3600) + (WORKING_MINUTES_STOP*60) + WORKING_SECONDES_STOP) && 
+        ((hours*3600)+(minutes*60)+seconds) > ((WORKING_HOUR_START*3600) + (WORKING_MINUTES_START*60) + WORKING_SECONDES_START)))
+    ){
+      // Every LOOPDURATION seconds
+      currentMillis = millis();
+      if(currentMillis - previousMillis >= LOOPDURATION) {
+        previousMillis = currentMillis;    
+    
+        //get a random server from the pool
+        WiFi.hostByName(ntpServerName, timeServerIP);
+        
+        // send an NTP packet to a time server
+        sendNTPpacket(timeServerIP); 
+        
+        //char * currencyInfos;
+        getCurrencyInfos();
+    
+        checkNTPresponse();
   
+        // Parsing  
+        /* Because parseObject writes inside the jsonBuffer, we can't
+        call it again, it will fail. So we create it again, every time we
+        need it.*/
+        DynamicJsonBuffer jsonBuffer(bufferSize); // Don't put that outside the loop 
+        JsonObject& root = jsonBuffer.parseObject(currencyInfos);
+        
+        // Test if parsing succeeds.
+        if (!root.success()) {
+          Serial.println("parseObject() failed");
+          return;
+        }
+        
+        for(int i = 0; i < MAX_CURRENCIES; i++){
+          JsonObject& root_i = root[String(i+1)];
+          st_currencies[i].symbol = root_i["symbol"];
+          st_currencies[i].price_eur = root_i["price"];
+          st_currencies[i].percentage_change_1_hour = root_i["change"]["hour"];
+        }
+        dataAvailable = true;
+        
+      }
+      if(dataAvailable){
+        P.displayText(curMessage, scrollAlign, scrollSpeed, scrollPause, scrollEffect, scrollEffect);
+        for(int i = 0; i < MAX_CURRENCIES ; i++){
+          arrToDisplay[i] = "";       
+          arrToDisplay[i] += st_currencies[i].symbol;
+          arrToDisplay[i] += " ";
+          arrToDisplay[i] += st_currencies[i].percentage_change_1_hour;
+          arrToDisplay[i] += "%";
+          arrToDisplay[i] += " ";
+          // Maximum length of 6 char fits perfectly on the display
+          for(int j = 0; j < 6; j++){
+            arrToDisplay[i] += st_currencies[i].price_eur[j];
+          }
+          Serial.println(arrToDisplay[i]);
+          dataAvailable = false;
+        }
+      }
+      // DISPLAY what's inside arrToDisplay
+      displayArray();  
+    }
+    
+    // No display and put to sleep
+    
+    else{
+      Serial.println("Go to sleep, but ask time before");
+      P.displayClear();
+      P.displayReset();
       //get a random server from the pool
       WiFi.hostByName(ntpServerName, timeServerIP);
       
       // send an NTP packet to a time server
       sendNTPpacket(timeServerIP); 
-      
-      //char * currencyInfos;
-      getCurrencyInfos();
+  
+      delay(10000);  
   
       checkNTPresponse();
-
-      // Parsing  
-      /* Because parseObject writes inside the jsonBuffer, we can't
-      call it again, it will fail. So we create it again, every time we
-      need it.*/
-      DynamicJsonBuffer jsonBuffer(bufferSize); // Don't put that outside the loop 
-      JsonObject& root = jsonBuffer.parseObject(currencyInfos);
-      
-      // Test if parsing succeeds.
-      if (!root.success()) {
-        Serial.println("parseObject() failed");
-        return;
-      }
-      
-      for(int i = 0; i < MAX_CURRENCIES; i++){
-        JsonObject& root_i = root[String(i+1)];
-        st_currencies[i].symbol = root_i["symbol"];
-        st_currencies[i].price_eur = root_i["price"];
-        st_currencies[i].percentage_change_1_hour = root_i["change"]["hour"];
-      }
-      dataAvailable = true;
-      
     }
-    if(dataAvailable){
-      P.displayText(curMessage, scrollAlign, scrollSpeed, scrollPause, scrollEffect, scrollEffect);
-      for(int i = 0; i < MAX_CURRENCIES ; i++){
-        arrToDisplay[i] = "";       
-        arrToDisplay[i] += st_currencies[i].symbol;
-        arrToDisplay[i] += " ";
-        arrToDisplay[i] += st_currencies[i].percentage_change_1_hour;
-        arrToDisplay[i] += "%";
-        arrToDisplay[i] += " ";
-        // Maximum length of 6 char fits perfectly on the display
-        for(int j = 0; j < 6; j++){
-          arrToDisplay[i] += st_currencies[i].price_eur[j];
-        }
-        Serial.println(arrToDisplay[i]);
-        dataAvailable = false;
-      }
-    }
-    // DISPLAY what's inside arrToDisplay
-    displayArray();  
   }
-  
-  // No display and put to sleep
-  
-  else{
-    Serial.println("Go to sleep, but ask time before");
-    P.displayClear();
-    P.displayReset();
-    //get a random server from the pool
-    WiFi.hostByName(ntpServerName, timeServerIP);
+  else{ 
+    /* For some reason the board is not trying to reconnect automatically.
+     this is a crude solution to reconnect to the network. */
+    Serial.println("Network error");
+    WiFi.disconnect(true);
+    WiFi.begin(ssid, password);
+    Serial.println("Re-connecting..");
     
-    // send an NTP packet to a time server
-    sendNTPpacket(timeServerIP); 
-
-    delay(10000);  
-
-    checkNTPresponse();
+    while ((WiFi.status() != WL_CONNECTED) && ((currentMillis - previousMillis) < CONNECT_TIMEOUT)){
+      currentMillis = millis();  
+      delay(1000);
+      Serial.print(".");
+    }
+    
+    if(WiFi.status() == WL_CONNECTED){
+      Serial.println("WiFi connected");
+      Serial.println("IP address: ");
+      Serial.println(WiFi.localIP());
+  
+      Serial.println("Starting UDP");
+      udp.begin(localPort);
+      Serial.print("Local port: ");
+      Serial.println(udp.localPort());
+    }
+    else{
+      Serial.println("Connetion timeout");
+    }
+    previousMillis = currentMillis;
   }
 }   
 
