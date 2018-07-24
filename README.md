@@ -21,9 +21,9 @@ Next, by going to "Boards Manager" you should be able to add "esp8266" by ESP826
 
 After that, you want to install three libraries : 
 ```
-ArduinoJson by Benoit Blanchon
-MD_MAX72XX by majicDesigns
-MD_Parola by majicDesigns
+ArduinoJson 5.13.2 by Benoit Blanchon
+MD_MAX72XX v2.10.0 by majicDesigns
+MD_Parola v2.7.4 by majicDesigns
 ```
 
 
